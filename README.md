@@ -11,8 +11,8 @@ In your subscription, it creates:
 - a resource group named `fml-<suffix>` to hold the identity, so the module needs no pre-existing group;
 - a user-assigned managed identity for Formal to authenticate as;
 - a federated identity credential on that identity, pinning Formal's issuer, Formal's per-integration role ARN as the subject, and the `api://AzureADTokenExchange` audience (only that exact role can exchange a token, and Entra matches all three exactly);
-- a role assignment per entry in `role_definitions`, on the subscription or on `resource_group` when set, for resource discovery;
-- `Storage Blob Data Contributor`, on each account in `blob_storage_accounts`, or on every account in the subscription (or `resource_group`) when none are named, for log delivery.
+- a custom role holding exactly the `actions` and `data_actions` the enabled capabilities use, and one assignment of it, on the subscription or on `resource_group` when set;
+- `Storage Blob Data Contributor`, on each account in `blob_storage_accounts`, for log delivery. When no account is named, the blob write is a `data_action` on the custom role instead, covering every account in scope.
 
 No secrets are created. Access is entirely federated.
 
@@ -25,7 +25,8 @@ No secrets are created. Access is entirely federated.
 | `issuer`                | OIDC issuer URL of Formal's AWS account. Entra fetches its JWKS to verify Formal's assertion.                                      |
 | `subject`               | AWS IAM role ARN Formal presents for your cloud integration. Entra matches it exactly and is case sensitive.                       |
 | `audience`              | Audience the assertion carries. Entra only accepts `api://AzureADTokenExchange` (default).                                         |
-| `role_definitions`      | Azure built-in roles to grant Formal's managed identity, derived from the capabilities you enable (default `[]`).                  |
+| `actions`               | Control-plane actions for the custom role, derived from the capabilities you enable.                                               |
+| `data_actions`          | Data-plane actions for the custom role, derived the same way.                                                                      |
 | `resource_group`        | Narrows discovery and the role assignments to a single resource group. Empty covers the whole subscription (default `""`).         |
 | `blob_storage_accounts` | Storage accounts Formal may write logs to. Empty grants blob writes on every account in scope (default `[]`).                      |
 | `location`              | Region for the resource group holding Formal's identity. The identity is regional; what it can read is not (default `eastus`). |
@@ -78,8 +79,8 @@ module "formal_azure" {
   issuer          = formal_integration_cloud.azure.azure_issuer
   subject         = formal_integration_cloud.azure.aws_formal_role_arn
 
-  role_definitions      = ["Reader"]
-  blob_storage_accounts = formal_integration_cloud.azure.azure[0].blob_storage_accounts
+  actions      = formal_integration_cloud.azure.azure_actions
+  data_actions = formal_integration_cloud.azure.azure_data_actions
 }
 
 resource "formal_integration_cloud_azure_activation" "azure" {
@@ -89,9 +90,9 @@ resource "formal_integration_cloud_azure_activation" "azure" {
 }
 ```
 
-`issuer` and `subject` come from the integration's computed attributes. `subscription_id` and `blob_storage_accounts` are read from the `azure` block, which is known at plan time, because they feed `for_each`.
+`issuer`, `subject`, `actions` and `data_actions` come from the integration's computed attributes. `subscription_id` is read from the `azure` block instead, because it feeds `for_each` and so must be known at plan time, as `blob_storage_accounts` does.
 
-`role_definitions` is the one input you write out rather than pipe. It also feeds `for_each`, and unlike GCP's `permissions`, which the module grants through a single custom role, each Azure role is its own assignment. Read `azure_role_definitions` on the integration to see what Formal wants.
+Setting `resource_group` or `blob_storage_accounts` on the integration means passing them here too, from the `azure` block. Left out, Azure grants on the whole subscription and on every storage account in it, which is wider than what Formal recorded.
 
 The activation resource is separate from `formal_integration_cloud` on purpose: that resource feeds the module its id and role ARN, so reading the module outputs back into it would create a dependency cycle.
 

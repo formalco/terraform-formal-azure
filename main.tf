@@ -4,10 +4,6 @@ locals {
 
   # The whole subscription unless a resource group narrows it.
   scope = var.resource_group == "" ? "/subscriptions/${var.subscription_id}" : "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group}"
-
-  # Naming storage accounts narrows blob writes to those accounts, so the role
-  # leaves the shared scope and is granted per account below.
-  scope_roles = length(var.blob_storage_accounts) > 0 ? [for role in var.role_definitions : role if role != "Storage Blob Data Contributor"] : var.role_definitions
 }
 
 # The identity needs a resource group of its own so this module does not depend on
@@ -35,12 +31,24 @@ resource "azurerm_federated_identity_credential" "this" {
   audience                  = [var.audience]
 }
 
-resource "azurerm_role_assignment" "this" {
-  for_each = toset(local.scope_roles)
+# Formal derives the actions, so they are unknown until apply, which rules out for_each.
+resource "azurerm_role_definition" "this" {
+  name        = local.name
+  scope       = local.scope
+  description = "Formal cloud integration ${var.integration_id}"
 
-  scope                = local.scope
-  role_definition_name = each.value
-  principal_id         = azurerm_user_assigned_identity.this.principal_id
+  permissions {
+    actions      = var.actions
+    data_actions = var.data_actions
+  }
+
+  assignable_scopes = [local.scope]
+}
+
+resource "azurerm_role_assignment" "this" {
+  scope              = local.scope
+  role_definition_id = azurerm_role_definition.this.role_definition_resource_id
+  principal_id       = azurerm_user_assigned_identity.this.principal_id
 
   # The identity is created in this same apply, so the directory check would fail
   # on Entra replication lag.

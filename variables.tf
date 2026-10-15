@@ -52,11 +52,33 @@ variable "location" {
   default     = "eastus"
 }
 
+variable "actions" {
+  type        = list(string)
+  description = "Control-plane actions to grant Formal's managed identity through a custom role, derived from the capabilities you enable. Pass azure_actions from the integration."
+  nullable    = false
+
+  validation {
+    condition     = length(var.actions) > 0
+    error_message = "actions is empty, but Formal always returns at least one. Pass azure_actions from formal_integration_cloud."
+  }
+}
+
+variable "data_actions" {
+  type        = list(string)
+  description = "Data-plane actions to grant through the same custom role, derived from the capabilities you enable. Empty when blob_storage_accounts names specific accounts, because blob writes are then granted per account instead. Pass azure_data_actions from the integration."
+  nullable    = false
+}
+
 variable "role_definitions" {
   type        = list(string)
-  description = "Azure built-in roles to grant Formal's managed identity, derived from the capabilities you enable. Storage Blob Data Contributor is applied per storage account when blob_storage_accounts is set, and on the whole subscription or resource group otherwise."
+  description = "Removed: superseded by actions and data_actions, which grant a custom role scoped to what Formal actually calls instead of built-in roles."
   default     = []
   nullable    = false
+
+  validation {
+    condition     = length(var.role_definitions) == 0
+    error_message = "role_definitions is no longer supported. Pass actions = formal_integration_cloud.<name>.azure_actions and data_actions = formal_integration_cloud.<name>.azure_data_actions instead, with a Formal provider version that exposes them."
+  }
 }
 
 variable "blob_storage_accounts" {

@@ -34,7 +34,8 @@ SUBJECT="$(jq -r '.subject' <<<"${SETUP}")"
 AUDIENCE="$(jq -r '.audience' <<<"${SETUP}")"
 SUBSCRIPTION_ID="$(jq -r '.subscriptionId' <<<"${SETUP}")"
 RESOURCE_GROUP="$(jq -r '.resourceGroup // ""' <<<"${SETUP}")"
-ROLE_DEFINITIONS="$(jq -c '.roleDefinitions // []' <<<"${SETUP}")"
+ACTIONS="$(jq -c '.actions // []' <<<"${SETUP}")"
+DATA_ACTIONS="$(jq -c '.dataActions // []' <<<"${SETUP}")"
 BLOB_STORAGE_ACCOUNTS="$(jq -c '.blobStorageAccounts // []' <<<"${SETUP}")"
 
 REPO_URL="https://github.com/formalco/terraform-formal-azure.git"
@@ -70,7 +71,8 @@ TF_VARS=(
   -var "issuer=${ISSUER}"
   -var "subject=${SUBJECT}"
   -var "audience=${AUDIENCE}"
-  -var "role_definitions=${ROLE_DEFINITIONS}"
+  -var "actions=${ACTIONS}"
+  -var "data_actions=${DATA_ACTIONS}"
   -var "blob_storage_accounts=${BLOB_STORAGE_ACCOUNTS}"
 )
 

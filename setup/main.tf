@@ -52,7 +52,13 @@ variable "location" {
   default = "eastus"
 }
 
-variable "role_definitions" {
+variable "actions" {
+  type     = list(string)
+  default  = []
+  nullable = false
+}
+
+variable "data_actions" {
   type     = list(string)
   default  = []
   nullable = false
@@ -74,7 +80,8 @@ module "formal" {
   subscription_id       = var.subscription_id
   resource_group        = var.resource_group
   location              = var.location
-  role_definitions      = var.role_definitions
+  actions               = var.actions
+  data_actions          = var.data_actions
   blob_storage_accounts = var.blob_storage_accounts
 }
 
